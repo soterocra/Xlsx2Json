@@ -10,7 +10,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created by Feliciano on 6/1/2016.
@@ -19,7 +22,7 @@ public class ExcelParser {
 
     public static String SIGN_HIDDEN_CELL_PREFIX = "$";
 
-    public static String SIGN_ITEM_SPLITTER = ",";
+    public static String SIGN_ITEM_SPLITTER = ";";
 
     public static String SIGN_KEYVALUE_SPLITTER = ":";
 
@@ -115,7 +118,7 @@ public class ExcelParser {
         for ( int index = 0; index < parsedSheet.width;  index++)
         {
             //System.out.println("Column: " + index);
-
+        	System.out.println(parsedSheet.getSheet());
             Cell cell = row.getCell(index);
 
             String key = parsedSheet.getKey( index );
@@ -153,14 +156,15 @@ public class ExcelParser {
                         jsonRow.put(key, JSONObject.NULL);
                         continue;
                     }
-                    break;
+                    break;                
                 case REFERENCE:
                     if (cell == null || cell.getCellType() == CellType.BLANK) {
                         jsonRow.put(key.substring(0, key.indexOf("@")), JSONObject.NULL);
                         continue;
                     }
                     break;
-
+                    
+                case ARRAY_REFERENCE:
                 case ARRAY_STRING:
                 case ARRAY_BOOLEAN:
                 case ARRAY_DOUBLE:
@@ -299,7 +303,31 @@ public class ExcelParser {
 
                     jsonRow.put( key, jsonObject);
                     break;
+                case ARRAY_REFERENCE:
+                    String[] keyAndTargetAR = key.split(SIGN_TABLE_REFERENCE_SPLITTER);
+                    key = keyAndTargetAR[0];
 
+                    // Split sheet name and column name
+                    String[] realTargetAR = keyAndTargetAR[1].split(SIGN_SHEETNAME_COLUMNNAME_SPLITTER);
+                    String targetSheetNameAR = realTargetAR[0];
+                    String targetKeyAR = realTargetAR[1];
+                    String[] targetValueAR = getCellStringValue(cell).split(SIGN_ITEM_SPLITTER);
+//                    ArrayList<String> targetValueAR = ExcelParser.<ArrayList<String>>parseCellData(type, stringCellValue);
+
+                    JSONArray obj = new JSONArray(new ArrayList<Map<String, Object>>());
+                    
+                    for (int iAR = 0; iAR < targetValueAR.length; iAR++) {
+                    	Sheet targetSheetAR = parsedSheet.getSheet(targetSheetNameAR);
+                    	ParsedSheet parsedTargetSheetAR = new ParsedSheet(targetSheetAR.getWorkbook(), targetSheetNameAR);
+                    	parsedTargetSheetAR.parseSheet();
+                    	
+                    	Row targetRowAR = findRowByColumn(parsedTargetSheetAR, targetKeyAR, targetValueAR[iAR]);
+                    	jsonObject = parseRow(targetRowAR, parsedTargetSheetAR);
+                    	obj.put(jsonObject);
+                    	
+                    }
+                    jsonRow.put( key, obj);                    	
+                    
                 default:
                     throw new IllegalArgumentException("Unsupported type " + type + " found.");
             }

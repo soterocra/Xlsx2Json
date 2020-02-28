@@ -37,6 +37,10 @@ public enum ParsedCellType {
      */
     REFERENCE("Reference"),
     /**
+     * Reference to another JSONObject from another row
+     */
+    ARRAY_REFERENCE("Array<Reference>"),
+    /**
      * JSONObject
      */
     OBJECT("Object");
